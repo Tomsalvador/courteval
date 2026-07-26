@@ -1,0 +1,14 @@
+{
+  "name": "courteval-marketplace",
+  "description": "Adversarial multi-agent evaluation for any proposal — ideas, architecture, technical designs.",
+  "owner": {
+    "name": "Tomas Salvador"
+  },
+  "plugins": [
+    {
+      "name": "courteval",
+      "source": "./",
+      "description": "Adversarial multi-agent evaluation for any proposal — ideas, architecture, technical designs. Prosecutor attacks, Defender counters, Judge delivers a BUILD/KILL/PIVOT verdict."
+    }
+  ]
+}

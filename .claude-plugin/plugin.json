@@ -1,0 +1,14 @@
+{
+  "name": "courteval",
+  "version": "0.1.0",
+  "description": "Adversarial multi-agent evaluation for Claude Code — for any proposal, not just product ideas: architecture decisions, technical designs, refactor plans, or business ideas. A Prosecutor attacks, a Defender counters, a Judge delivers a BUILD/KILL/PIVOT verdict.",
+  "author": {
+    "name": "Tomas Salvador"
+  },
+  "keywords": [
+    "idea-evaluation",
+    "multi-agent",
+    "adversarial",
+    "decision-making"
+  ]
+}
