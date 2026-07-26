@@ -79,43 +79,44 @@ Once you have 3-5 solid, justified aspects, continue to Step 3.
 
 **Isolation is meant to be user-verifiable, not just self-reported.** When you dispatch Prosecutor and Defender correctly, the user's own session transcript will show real subagent/Task invocations for each round. If they want to confirm CourtEval actually ran isolated (rather than trusting the `status: ok` label), tell them to check for that in their transcript — don't discourage the question.
 
-Run up to **3 rounds**. Each round:
+**Speed matters — this has to run fast enough that people actually use it.** Real subagent dispatch has real overhead; a sequential turn-by-turn debate can take several minutes, which is long enough that nobody will bother. Four things keep it fast without cutting the mechanism itself:
 
-### Prosecutor subagent (dispatch fresh each round with the transcript so far)
+1. **Dispatch Prosecutor and Defender in parallel, not sequentially.** Issue both Task/Agent calls in the same turn so they run concurrently — do not wait for Prosecutor to finish before starting Defender. This roughly halves wall-clock time per round, and if anything makes isolation *stronger*: neither sees the other's output for that round at all, only the transcript through the prior round.
+2. **Use a faster/lighter model for Prosecutor and Defender specifically**, if your environment lets you choose a model per subagent dispatch — reserve the strongest available model for the Judge's synthesis in Step 4, where the reasoning actually needs to be deep. The debate roles need to be sharp and concrete, not exhaustive.
+3. **Keep each turn short: roughly 100-150 words per still-open aspect.** This is a fast pressure-test, not a legal brief — concrete and concise beats thorough and slow.
+4. **Default round cap is 2, not 3.** Round 3 rarely changes the verdict and doubles the worst-case wait for marginal benefit. If the user explicitly asks for deeper scrutiny ("modo profundo", "sé más exhaustivo", "dale otra vuelta"), or the Judge's confidence is still low and volatile after round 2, extend to a third round — but that's opt-in, not the default.
 
-Give it ONLY: the idea text, the list of aligned aspects, any user-supplied reference material (see "Optional: reference material" above), and the transcript of the debate so far (if any prior rounds exist). Do NOT give it any framing, context, or conversation history from how the idea was originally proposed or discussed with the user.
+### Prosecutor and Defender, dispatched together each round
+
+Each round, issue **both dispatches in the same turn** so they run in parallel. Give each ONLY: the idea text, the aligned aspects, any user-supplied reference material (see "Optional: reference material" above), and the transcript **through the end of the previous round** — never this round's output from the other role, since it doesn't exist yet when both are dispatched. Do NOT give either any framing, context, or conversation history from how the idea was originally proposed or discussed with the user.
 
 Prosecutor's instructions:
-> You are the Prosecutor in an adversarial idea evaluation. Posture: skeptic, not helper. Do not validate. Do not encourage. Push back.
+> You are the Prosecutor in an adversarial idea evaluation. Posture: skeptic, not helper. Do not validate. Do not encourage. Push back. Keep it concise: roughly 100-150 words per aspect you address, no padding.
 >
-> First, privately write 2-3 sentences of strategy: which aspect(s) you'll emphasize this round and why. This strategy is never shown to the Defender or in the final output — it's to sharpen your own argument, not to be read by anyone else.
+> First, privately write 1-2 sentences of strategy: which aspect(s) you'll emphasize this round and why. Never shown to the Defender or in the final output.
 >
 > If reference material was supplied, you may cite it against the proposal — but only by quoting the specific passage you're relying on. A vague "this seems to conflict with policy" without a quote doesn't count.
 >
 > **Only in round 1:** before attacking, sanity-check the aligned aspects you were given. If one is irrelevant, too generic to matter for this specific proposal, or misses what you believe is the proposal's real weak point, say so explicitly: `SCOPE ISSUE: <aspect name> — <why it doesn't materially apply here> — suggested replacement: <a sharper aspect>`. This is the first genuinely independent check on the Scoper's choices — the Scoper graded its own aspects when it wrote them, you didn't, so don't rubber-stamp a bad one just to stay on script. Still attack every aspect you don't flag, in the same round.
 >
 > Then, for each aligned aspect that is still open (not yet marked `NO ISSUE` by you in a prior round), either:
-> - Raise your strongest objection for that aspect this round, as concretely as possible (name specific failure modes, not vague concerns), or
+> - Raise your strongest objection for that aspect this round, as concretely as possible (name specific failure modes, not vague concerns) — respond to the Defender's most recent argument on it if the transcript already has one, or
 > - If you genuinely have nothing further to add on that aspect beyond what's already in the transcript, write `NO ISSUE: <aspect name>` instead of repeating yourself or inventing a weaker objection just to have something to say.
 >
-> Do not attack aspects you've already marked `NO ISSUE` on in a prior round unless the Defender's last response opened a genuinely new angle on it.
-
-### Defender subagent (dispatch fresh each round with the transcript so far, including this round's Prosecutor turn)
-
-Give it the same inputs as the Prosecutor (idea, aspects, any reference material, transcript so far including the Prosecutor's just-completed turn) — same isolation rule applies, and the same reference material, symmetrically.
+> Do not attack aspects you've already marked `NO ISSUE` on in a prior round unless the transcript shows the Defender opened a genuinely new angle on it since.
 
 Defender's instructions:
-> You are the Defender in an adversarial idea evaluation. Your job is to counterbalance the Prosecutor's tendency to over-penalize — argue for the idea using real reasoning and evidence, not blind cheerleading.
+> You are the Defender in an adversarial idea evaluation. Your job is to counterbalance the Prosecutor's tendency to over-penalize — argue for the idea using real reasoning and evidence, not blind cheerleading. Keep it concise: roughly 100-150 words per aspect you address, no padding.
 >
-> First, privately write 2-3 sentences of strategy: which of the Prosecutor's points you'll counter this round and how. Never shown to anyone else.
+> First, privately write 1-2 sentences of strategy: what you'll emphasize this round and why. Never shown to the Prosecutor or in the final output.
 >
 > If reference material was supplied, you may cite it in the proposal's favor — same rule as the Prosecutor: quote the specific passage, don't just gesture at it.
 >
-> Then, respond to each objection the Prosecutor raised THIS round with a real counter-argument (not a dismissal). For any aspect the Prosecutor marked `NO ISSUE` on this round: if you also have nothing further to add on it, write `NO ISSUE: <aspect name>`. If you think there's still something worth raising in the idea's favor, you may do so even if the Prosecutor considers the aspect closed.
+> You are being dispatched **at the same time** as the Prosecutor's round — you will not see this round's Prosecutor turn, only the transcript through the previous round. For round 1 (no prior transcript), defend each aspect proactively: state the strongest case for the proposal on that aspect, anticipating the obvious objection rather than reacting to one you haven't seen yet. From round 2 onward, respond directly to the Prosecutor's most recent (prior-round) objection on each still-open aspect with a real counter-argument. For any aspect where the transcript shows nothing further worth adding, write `NO ISSUE: <aspect name>`.
 
-### Aspect-closing rule (apply this yourself after each round, not inside either subagent)
+### Aspect-closing rule (apply this yourself after both dispatches return, not inside either subagent)
 
-An aspect **closes** for the round when: the Prosecutor did not raise a new objection on it this round (either by silence or by writing `NO ISSUE`) **and** the Defender's response this same round also added nothing new on it. This is a *sequential*, same-round check — it does not require both sides to have literally written the phrase `NO ISSUE` simultaneously; if the Prosecutor stops attacking an aspect, the Defender naturally has nothing to respond to on it, and that also counts as closed.
+An aspect **closes** as of this round when: the Prosecutor's turn this round did not raise a new objection on it (silence or explicit `NO ISSUE`) **and** the Defender's turn this round also added nothing new on it. Because both were generated in parallel, this is a check you make after both come back — not something either subagent judges mid-round.
 
 ### Belief state (you track this, not either subagent)
 
@@ -132,7 +133,7 @@ Keep a running list across rounds — you'll need it for the final verdict and f
 Stop the loop (do not run another round) if **any** of these is true:
 1. All aligned aspects are closed (per the rule above).
 2. Your confidence has stayed within ±5 points for 2 consecutive rounds **and** the "what would move the number" reasoning from part 4 above is substantively the same both times — not just a coincidentally similar score. If the number held steady but the reason you gave for it changed, that's not real stability; run another round.
-3. You have completed 3 rounds (hard cap — stop regardless of the above).
+3. You have completed **2 rounds** (default cap — stop here unless the user asked for the deeper mode described above, in which case the cap is 3).
 
 Otherwise, run another round.
 
@@ -160,25 +161,15 @@ Produce, in this order:
 
 ## Output format
 
-Present the final result to the user as:
+The 7 fields from Step 4 are how you *think*, not how you *talk*. Do not present them to the user as a literal template with headers, a per-aspect rubric list, and a labeled verdict line — that reads like a compliance report, not an answer. Write the final result as natural prose: the same register you'd use for a direct, un-debated answer to the same question, just backed by what the adversarial debate actually surfaced instead of generic reasoning.
 
-```
-## CourtEval Verdict: [BUILD / KILL / PIVOT]  (confidence: NN%, status: ok/degraded/error)
-
-### Conflicts by aspect
-- **[Aspect name]**: Prosecutor — [claim]. Defender — [claim]. → [resolution]
-  (repeat per aspect)
-
-### Rubric
-- [Aspect]: STRONG/WEAK/BROKEN — [restated band description as it applies here]
-  (repeat per aspect)
-
-### Overrides applied
-- [Override description, citing the aspect + exact quote] — or "None."
-
-### Procedural notes
-[Only include if status is degraded or error — explain what was skipped or uncertain]
-```
+Requirements for the prose:
+- Lead with whatever is most decision-relevant — usually the strongest point in the proposal's favor and/or the most serious unresolved gap — not a march through the aspects in the order they were defined.
+- Name the specific, concrete findings from the transcript (what actually got raised, what actually held up or fell apart, and say plainly when a round cap cut off a rebuttal before it happened) — but state them as your own direct analysis, in your own voice. **Never surface the machinery**: no "Prosecutor", "Defender", "Judge", "el que atacaba", "quien defendía", "el debate", "la otra parte concedió", round numbers, or any other language that reveals this ran as a multi-role process. The reader should not be able to tell this wasn't a single, well-reasoned answer — the adversarial process is how you got here, not something to narrate. Say "el punto más débil es X" or "esto no se sostiene porque Y", never "el Fiscal objetó X" or "el Defensor no pudo responder Y".
+- Never show the literal band labels (`STRONG`/`WEAK`/`BROKEN`/`NEEDS-DATA`) or a conflicts/rubric list to the user — translate each into what it actually means for the proposal in plain language instead.
+- Close with your actual take stated as an opinion, in a sentence: mention the BUILD/KILL/PIVOT lean and a calibrated confidence in words (e.g. "confianza media-alta", "poco convencido de esto tal como está") — not as a bracketed label, header, or bare percentage.
+- If `status` is `degraded` or `error`, say so plainly within the prose (e.g. "un aspecto no llegó a debatirse del todo, así que tomá esto con más pinzas") — the conversational format doesn't excuse dropping this disclosure.
+- Keep it as tight as the substance allows. This is a more carefully verified answer, not a longer one for its own sake — if the debate genuinely found nothing beyond what a plain answer would say, say that too, don't pad it out to look thorough.
 
 ## What this skill deliberately does not do
 
@@ -188,4 +179,4 @@ Be upfront about these if the user asks, rather than implying more rigor than ac
 - `NO ISSUE` declarations and the Judge's confidence number are still the model's own self-report, not a deterministic calculation — there is no code verifying them. Requiring a stated reason the number would move (Step 3) makes it harder to hand-wave, but it isn't proof.
 - Override citations are required but not independently verified against the actual transcript by anything other than the Judge's own diligence.
 - Subagent isolation for Prosecutor/Defender depends on the host actually supporting Task/Agent dispatch and this skill's instructions being followed — there is no code-level enforcement. If it can't run isolated, the skill is instructed to disclose that in `status` rather than fake it, and the user can verify real isolation happened by checking their own session transcript for actual subagent invocations.
-- No cost or usage tracking — a full evaluation costs roughly 4-9 model calls (Gatekeeper and Scoper are folded into this context; Prosecutor and Defender are separate subagent calls, up to 3 rounds each; Judge is folded into this context). Most ideas resolve in 1-2 rounds because of the aspect-closing rule — except technical/architecture aspects that hinge on real data, which may hit the 3-round cap more often and land on `NEEDS-DATA` rather than a clean resolution. That's the debate correctly surfacing a real limit, not the skill failing.
+- No cost or usage tracking — a full evaluation costs roughly 4-7 model calls by default (Gatekeeper and Scoper are folded into this context; Prosecutor and Defender are separate parallel subagent calls, up to 2 rounds by default; Judge is folded into this context). Most proposals resolve in 1-2 rounds because of the aspect-closing rule — technical/architecture aspects that hinge on real data may still land on `NEEDS-DATA` after the default cap rather than a clean resolution, which is the debate correctly surfacing a real limit, not the skill failing. Parallel dispatch and a faster model on the debate roles (see Step 3) keep this to roughly a minute or two in practice rather than several minutes — ask for the deeper mode (up to 3 sequential-context rounds) only when you actually want to trade speed for extra scrutiny.

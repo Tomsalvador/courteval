@@ -31,14 +31,14 @@ Or more directly: `run this through CourtEval: <your proposal>`.
 CourtEval will:
 1. Sanity-check the input (Gatekeeper)
 2. Define the aspects worth debating for this specific idea (Scoper)
-3. Run up to 3 rounds of real debate between isolated Prosecutor/Defender subagents, stopping early once nothing new is being said
+3. Run up to 2 rounds of real debate between isolated Prosecutor/Defender subagents — dispatched in parallel, on a faster model, stopping early once nothing new is being said (ask for "modo profundo" for a slower, deeper 3-round pass)
 4. Synthesize a verdict with a rubric, cited overrides, and a conflict list you can scan in seconds
 
 ## What it doesn't do
 
 - No built-in web search or fact-checking — the debate runs on the model's own reasoning, not verified market data. Pair it with a research skill if you need that.
 - No persistent memory across sessions — there's no idea history or duplicate-detection beyond the current conversation.
-- No cost tracking — a typical evaluation costs roughly 4-9 model calls, usually resolving in 1-2 debate rounds.
+- No cost tracking — a typical evaluation costs roughly 4-7 model calls, usually resolving in 1-2 debate rounds, aiming for about a minute or two rather than several minutes.
 
 See [`skills/courteval/SKILL.md`](skills/courteval/SKILL.md) for the full orchestration logic.
 
