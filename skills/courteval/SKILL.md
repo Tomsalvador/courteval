@@ -27,20 +27,6 @@ When it's a key moment, **don't silently run the full pipeline and present a ver
 
 ---
 
-## Optional: reference material
-
-The user may supply reference material alongside the proposal — internal policy, legislation, a compliance requirement, a prior decision, a style guide, a specific data source, or any other authoritative text they want the debate grounded in. If they do, or if you're unsure and want to offer it, you can prompt: *"¿Hay alguna norma, política interna, o fuente específica que debería tener en cuenta para esto?"*
-
-When reference material is supplied:
-- **It is available to both Prosecutor and Defender, symmetrically.** Pass it to both subagents in Step 3 along with the idea and aspects. A regulation or policy can support either side's argument — restricting it to one role would rig the debate, not ground it.
-- **Citing it requires quoting the specific passage relied on** — same standard as Judge overrides in Step 4. "The policy supports this" without a quote is an assertion, not grounding.
-- **It changes what counts as `NEEDS-DATA` in Step 4.** That band is for disagreements neither side can resolve through reasoning alone — if the user's supplied material actually answers the question, the aspect gets a real rubric rating (`STRONG`/`WEAK`/`BROKEN`), not `NEEDS-DATA`, because the data was never actually missing.
-- **Scoper (Step 2) should read it too** when defining aligned aspects — if the material makes a specific dimension obviously load-bearing (e.g., a hard compliance requirement), that belongs in the aspect list.
-
-If nothing is supplied, none of this applies — the debate runs exactly as described below, on reasoning alone (see "What this skill deliberately does not do").
-
----
-
 ## Step 1 — Gatekeeper
 
 Before anything else, sanity-check the input yourself (no subagent needed for this step):
@@ -53,7 +39,29 @@ If the idea passes, continue to Step 2.
 
 ---
 
-## Step 2 — Scoper
+## Step 2 — Context intake
+
+Still no subagent — do this yourself, in this same context, before defining aspects.
+
+Ask, in one combined question: *"¿Hay alguna restricción dura que debería tener en cuenta — presupuesto, plazo, tamaño de equipo, algo que no se puede tocar? Y si tenés alguna política, norma o fuente específica que quieras que use como base, pasámela también."*
+
+This covers two distinct things — don't conflate them:
+
+- **Hard constraints** — operational facts about this specific situation (a budget cap, a deadline, a fixed team size, something that cannot be changed), not a document. Always ask. A vague aspiration ("try to keep it cheap-ish") is not a hard constraint — only treat something as a real constraint if it's stated as a firm limit.
+- **Reference material** — internal policy, legislation, a compliance requirement, a prior decision, a style guide, or any other authoritative text the user wants the debate grounded in. Optional to supply, but always worth asking about.
+
+If the user has nothing for either, move straight to Step 3 — this is one question, not a form to fill out.
+
+When something is supplied, it flows through the rest of the pipeline:
+- **Step 3 (Scoper)** reads it before defining aspects — if a constraint or reference material makes a specific dimension obviously load-bearing (a stated budget makes "cost feasibility" load-bearing; a compliance requirement makes it an aspect outright), that belongs in the aspect list.
+- **Step 4 (the debate)** passes it to both Prosecutor and Defender, symmetrically — a constraint or a policy can cut either way, restricting it to one side would rig the debate, not ground it. Citing it requires repeating the exact stated text — a vague gesture at it doesn't count.
+- **Step 5 (Judge)** treats a genuinely unresolved constraint violation as override-eligible, and lets supplied reference material turn what would otherwise be `NEEDS-DATA` into a real rating, because the data was never actually missing.
+
+If nothing is supplied for either, none of this applies — the debate runs on reasoning alone (see "What this skill deliberately does not do").
+
+---
+
+## Step 3 — Scoper
 
 Still no subagent — do this yourself, in this same context.
 
@@ -63,15 +71,15 @@ Read the proposal and define **4-5 "aligned aspects"**: the specific dimensions 
 - A software architecture decision (e.g. "should we move to microservices"): operational complexity / team size and expertise / actual scaling need vs. assumed need / migration risk / reversibility.
 - A technical design or refactor plan: correctness of the current pain point, blast radius of the change, test coverage before touching it, whether the simpler fix was considered first.
 
-Think about what would actually kill or invalidate *this specific* proposal before defaulting to generic categories — a software design should never get "market fit" as an aspect, and a business idea should never get "test coverage" as one. If the user supplied reference material (see "Optional: reference material" above), read it now — it may make a specific aspect obviously load-bearing.
+Think about what would actually kill or invalidate *this specific* proposal before defaulting to generic categories — a software design should never get "market fit" as an aspect, and a business idea should never get "test coverage" as one. If the user supplied constraints or reference material (see Step 2 above), read them now — either may make a specific aspect obviously load-bearing.
 
 **Quality gate:** for each aspect, write a one-line justification of why it matters for this specific idea (not a generic reason that would apply to any idea). If you cannot produce at least 3 well-justified aspects — because the idea is too abstract, too broad, or too thin to reason about concretely — stop here and tell the user: *"Esta idea es demasiado vaga para evaluar con este formato — necesito algo más concreto: [ask a specific clarifying question]."* Do not force 4-5 weak aspects just to keep the pipeline moving.
 
-Once you have 3-5 solid, justified aspects, continue to Step 3.
+Once you have 3-5 solid, justified aspects, continue to Step 4.
 
 ---
 
-## Step 3 — The debate (Prosecutor vs. Defender)
+## Step 4 — The debate (Prosecutor vs. Defender)
 
 **Critical: Prosecutor and Defender must each run as a real, isolated subagent** (via your Task/Agent dispatch capability), not as another turn in this same conversation. This is not optional — the entire point is that neither one has seen how the idea was framed or pitched, only the raw aspects to argue about. If you evaluate the debate roles yourself in this same context instead of dispatching real subagents, you have not run CourtEval correctly.
 
@@ -82,20 +90,20 @@ Once you have 3-5 solid, justified aspects, continue to Step 3.
 **Speed matters — this has to run fast enough that people actually use it.** Real subagent dispatch has real overhead; a sequential turn-by-turn debate can take several minutes, which is long enough that nobody will bother. Four things keep it fast without cutting the mechanism itself:
 
 1. **Dispatch Prosecutor and Defender in parallel, not sequentially.** Issue both Task/Agent calls in the same turn so they run concurrently — do not wait for Prosecutor to finish before starting Defender. This roughly halves wall-clock time per round, and if anything makes isolation *stronger*: neither sees the other's output for that round at all, only the transcript through the prior round.
-2. **Use a faster/lighter model for Prosecutor and Defender specifically**, if your environment lets you choose a model per subagent dispatch — reserve the strongest available model for the Judge's synthesis in Step 4, where the reasoning actually needs to be deep. The debate roles need to be sharp and concrete, not exhaustive.
+2. **Use a faster/lighter model for Prosecutor and Defender specifically**, if your environment lets you choose a model per subagent dispatch — reserve the strongest available model for the Judge's synthesis in Step 5, where the reasoning actually needs to be deep. The debate roles need to be sharp and concrete, not exhaustive.
 3. **Keep each turn short: roughly 100-150 words per still-open aspect.** This is a fast pressure-test, not a legal brief — concrete and concise beats thorough and slow.
 4. **Default round cap is 2, not 3.** Round 3 rarely changes the verdict and doubles the worst-case wait for marginal benefit. If the user explicitly asks for deeper scrutiny ("modo profundo", "sé más exhaustivo", "dale otra vuelta"), or the Judge's confidence is still low and volatile after round 2, extend to a third round — but that's opt-in, not the default.
 
 ### Prosecutor and Defender, dispatched together each round
 
-Each round, issue **both dispatches in the same turn** so they run in parallel. Give each ONLY: the idea text, the aligned aspects, any user-supplied reference material (see "Optional: reference material" above), and the transcript **through the end of the previous round** — never this round's output from the other role, since it doesn't exist yet when both are dispatched. Do NOT give either any framing, context, or conversation history from how the idea was originally proposed or discussed with the user.
+Each round, issue **both dispatches in the same turn** so they run in parallel. Give each ONLY: the idea text, the aligned aspects, any user-supplied constraints or reference material (see Step 2 above), and the transcript **through the end of the previous round** — never this round's output from the other role, since it doesn't exist yet when both are dispatched. Do NOT give either any framing, context, or conversation history from how the idea was originally proposed or discussed with the user.
 
 Prosecutor's instructions:
 > You are the Prosecutor in an adversarial idea evaluation. Posture: skeptic, not helper. Do not validate. Do not encourage. Push back. Keep it concise: roughly 100-150 words per aspect you address, no padding.
 >
 > First, privately write 1-2 sentences of strategy: which aspect(s) you'll emphasize this round and why. Never shown to the Defender or in the final output.
 >
-> If reference material was supplied, you may cite it against the proposal — but only by quoting the specific passage you're relying on. A vague "this seems to conflict with policy" without a quote doesn't count.
+> If constraints or reference material were supplied, you may cite them against the proposal — but only by quoting the exact constraint text or the specific passage you're relying on. A vague "this seems to conflict with policy" or "this blows the budget" without the exact text doesn't count.
 >
 > **Only in round 1:** before attacking, sanity-check the aligned aspects you were given. If one is irrelevant, too generic to matter for this specific proposal, or misses what you believe is the proposal's real weak point, say so explicitly: `SCOPE ISSUE: <aspect name> — <why it doesn't materially apply here> — suggested replacement: <a sharper aspect>`. This is the first genuinely independent check on the Scoper's choices — the Scoper graded its own aspects when it wrote them, you didn't, so don't rubber-stamp a bad one just to stay on script. Still attack every aspect you don't flag, in the same round.
 >
@@ -110,7 +118,7 @@ Defender's instructions:
 >
 > First, privately write 1-2 sentences of strategy: what you'll emphasize this round and why. Never shown to the Prosecutor or in the final output.
 >
-> If reference material was supplied, you may cite it in the proposal's favor — same rule as the Prosecutor: quote the specific passage, don't just gesture at it.
+> If constraints or reference material were supplied, you may cite them in the proposal's favor — same rule as the Prosecutor: quote the exact text, don't just gesture at it.
 >
 > You are being dispatched **at the same time** as the Prosecutor's round — you will not see this round's Prosecutor turn, only the transcript through the previous round. For round 1 (no prior transcript), defend each aspect proactively: state the strongest case for the proposal on that aspect, anticipating the obvious objection rather than reacting to one you haven't seen yet. From round 2 onward, respond directly to the Prosecutor's most recent (prior-round) objection on each still-open aspect with a real counter-argument. For any aspect where the transcript shows nothing further worth adding, write `NO ISSUE: <aspect name>`.
 
@@ -139,7 +147,7 @@ Otherwise, run another round.
 
 ---
 
-## Step 4 — Judge (final synthesis)
+## Step 5 — Judge (final synthesis)
 
 Still no subagent — you do this yourself, using the full debate transcript and your round-by-round belief-state notes.
 
@@ -152,16 +160,16 @@ Produce, in this order:
    - `WEAK` — real unresolved concerns remain on this aspect; the Defender's response was generic, evasive, or didn't actually address the Prosecutor's core objection.
    - `BROKEN` — the Prosecutor identified a concern on this aspect that the Defender could not credibly counter at all.
    - `NEEDS-DATA` — the disagreement is real but genuinely can't be settled by more argument, because it hinges on an empirical fact neither side can supply through reasoning alone (e.g. "will this actually scale" without load-test numbers, "is there real demand" without talking to users). This is common on technical/architecture aspects and is not a weaker verdict than `WEAK` — it's a more honest one. When you use it, state exactly what data or test would resolve it, so the rating is actionable instead of just uncertain. **Do not use this band if the user supplied reference material that actually answers the question** — that's a real rubric rating, not a data gap.
-2. **Overrides (if any).** A hard override changes the overall verdict regardless of the other ratings (e.g., one `BROKEN` aspect on a fatal/blocking risk can override an otherwise-BUILD-leaning set of ratings). **Every override must cite the specific aspect name and quote the exact line from the transcript that triggered it.** An override without a direct quote is not valid — resolve that aspect by the normal rubric instead.
+2. **Overrides (if any).** A hard override changes the overall verdict regardless of the other ratings. Two things can trigger one: (a) one `BROKEN` aspect on a fatal/blocking risk, or (b) a hard constraint the user stated in Step 2 that the proposal violates, with no credible way to satisfy it ever raised in the debate. **Every override must cite the specific aspect name (or quote the exact constraint text, for a constraint-based override) and quote the exact line from the transcript that triggered it.** An override without a direct quote is not valid — resolve that aspect by the normal rubric instead.
 3. **Conflict list.** One entry per aspect, structured as: `{aspect, prosecutor_claim, defender_claim, resolution}` — a short, direct summary of what each side argued and how you resolved the disagreement. This is the main artifact the user should be able to scan in seconds.
 4. **Procedural adherence check.** Did every aligned aspect actually get debated by both sides at least once (not skipped, not collapsed into a single generic turn)? If any aspect was never genuinely contested by one side, note it explicitly here.
 5. **Final verdict.** One of `BUILD` / `KILL` / `PIVOT`, using the ratings and any overrides from above — not a fresh independent judgment call disconnected from the rubric you just produced. These labels apply beyond product ideas: for an architecture or technical proposal, `BUILD` = proceed with this approach, `KILL` = reject it and use a different approach, `PIVOT` = the core idea is sound but needs real changes before proceeding (e.g. "microservices, but not at this team size yet").
-6. **Confidence.** A 0-100 number, carried from your belief-state tracking in Step 3 (don't invent a new number disconnected from the debate).
+6. **Confidence.** A 0-100 number, carried from your belief-state tracking in Step 4 (don't invent a new number disconnected from the debate).
 7. **Status.** `ok` if all 6 fields above were completed honestly and the procedural adherence check found no gaps. `degraded` if some aspect was never properly debated, or you had to guess at any of the fields above. `error` only if the pipeline could not produce a real verdict at all (e.g., the debate subagents failed to return usable output) — in that case, say so plainly instead of fabricating a verdict.
 
 ## Output format
 
-The 7 fields from Step 4 are how you *think*, not how you *talk*. Do not present them to the user as a literal template with headers, a per-aspect rubric list, and a labeled verdict line — that reads like a compliance report, not an answer. Write the final result as natural prose: the same register you'd use for a direct, un-debated answer to the same question, just backed by what the adversarial debate actually surfaced instead of generic reasoning.
+The 7 fields from Step 5 are how you *think*, not how you *talk*. Do not present them to the user as a literal template with headers, a per-aspect rubric list, and a labeled verdict line — that reads like a compliance report, not an answer. Write the final result as natural prose: the same register you'd use for a direct, un-debated answer to the same question, just backed by what the adversarial debate actually surfaced instead of generic reasoning.
 
 Requirements for the prose:
 - Lead with whatever is most decision-relevant — usually the strongest point in the proposal's favor and/or the most serious unresolved gap — not a march through the aspects in the order they were defined.
@@ -175,8 +183,8 @@ Requirements for the prose:
 
 Be upfront about these if the user asks, rather than implying more rigor than actually exists:
 
-- No external web search or fact-checking by default — the debate runs on the reasoning and general knowledge of the model, not verified market data or live competitor research. If the user wants that, suggest they pair this with a research skill and feed CourtEval the findings as part of the idea brief, or supply it directly as reference material (see "Optional: reference material" above) — that's user-supplied grounding, not automatic search, and it only helps on the aspects it actually covers. This is also why the `NEEDS-DATA` rubric band exists — some aspects, especially technical ones, honestly can't be resolved by this skill at all without data nobody supplied.
-- `NO ISSUE` declarations and the Judge's confidence number are still the model's own self-report, not a deterministic calculation — there is no code verifying them. Requiring a stated reason the number would move (Step 3) makes it harder to hand-wave, but it isn't proof.
-- Override citations are required but not independently verified against the actual transcript by anything other than the Judge's own diligence.
+- No external web search or fact-checking by default — the debate runs on the reasoning and general knowledge of the model, not verified market data or live competitor research. If the user wants that, suggest they pair this with a research skill and feed CourtEval the findings as part of the idea brief, or supply it directly as reference material (see Step 2 above) — that's user-supplied grounding, not automatic search, and it only helps on the aspects it actually covers. This is also why the `NEEDS-DATA` rubric band exists — some aspects, especially technical ones, honestly can't be resolved by this skill at all without data nobody supplied.
+- `NO ISSUE` declarations and the Judge's confidence number are still the model's own self-report, not a deterministic calculation — there is no code verifying them. Requiring a stated reason the number would move (Step 4) makes it harder to hand-wave, but it isn't proof.
+- Override citations are required but not independently verified against the actual transcript by anything other than the Judge's own diligence — this applies equally to constraint-based overrides: there's no code checking that a stated budget or deadline was actually honored, only the Judge's own reading of the transcript.
 - Subagent isolation for Prosecutor/Defender depends on the host actually supporting Task/Agent dispatch and this skill's instructions being followed — there is no code-level enforcement. If it can't run isolated, the skill is instructed to disclose that in `status` rather than fake it, and the user can verify real isolation happened by checking their own session transcript for actual subagent invocations.
-- No cost or usage tracking — a full evaluation costs roughly 4-7 model calls by default (Gatekeeper and Scoper are folded into this context; Prosecutor and Defender are separate parallel subagent calls, up to 2 rounds by default; Judge is folded into this context). Most proposals resolve in 1-2 rounds because of the aspect-closing rule — technical/architecture aspects that hinge on real data may still land on `NEEDS-DATA` after the default cap rather than a clean resolution, which is the debate correctly surfacing a real limit, not the skill failing. Parallel dispatch and a faster model on the debate roles (see Step 3) keep this to roughly a minute or two in practice rather than several minutes — ask for the deeper mode (up to 3 sequential-context rounds) only when you actually want to trade speed for extra scrutiny.
+- No cost or usage tracking — a full evaluation costs roughly 4-7 model calls by default (Gatekeeper, Context intake, and Scoper are folded into this context; Prosecutor and Defender are separate parallel subagent calls, up to 2 rounds by default; Judge is folded into this context). Most proposals resolve in 1-2 rounds because of the aspect-closing rule — technical/architecture aspects that hinge on real data may still land on `NEEDS-DATA` after the default cap rather than a clean resolution, which is the debate correctly surfacing a real limit, not the skill failing. Parallel dispatch and a faster model on the debate roles (see Step 4) keep this to roughly a minute or two in practice rather than several minutes — ask for the deeper mode (up to 3 sequential-context rounds) only when you actually want to trade speed for extra scrutiny.
