@@ -8,7 +8,7 @@ Adversarial multi-agent evaluation for any proposal, as a Claude Code Skill — 
 
 No fixed checklist — a **Scoper** step defines 4-5 aspects specific to *this* proposal before the debate starts, so a fintech idea and a microservices-vs-monolith decision get debated on genuinely different terms (regulation/capital/adoption for one, operational complexity/team size/reversibility for the other).
 
-**Optional grounding:** if you have relevant source material — a compliance policy, legislation, an internal standard, a prior decision — hand it over with the proposal. Both Prosecutor and Defender get it, symmetrically, and have to quote the exact passage they're relying on to use it. Without it, the debate runs on reasoning alone.
+**Context intake:** before picking aspects, CourtEval always asks about hard constraints — budget, timeline, team size, anything non-negotiable — and offers to take reference material too, if you have relevant source material (a compliance policy, legislation, an internal standard, a prior decision). Both Prosecutor and Defender get whatever you provide, symmetrically, and have to quote the exact text to use it. Nothing to add? Say so and it moves straight on.
 
 ## Install
 
@@ -30,9 +30,10 @@ Or more directly: `run this through CourtEval: <your proposal>`.
 
 CourtEval will:
 1. Sanity-check the input (Gatekeeper)
-2. Define the aspects worth debating for this specific idea (Scoper)
-3. Run up to 2 rounds of real debate between isolated Prosecutor/Defender subagents — dispatched in parallel, on a faster model, stopping early once nothing new is being said (ask for "modo profundo" for a slower, deeper 3-round pass)
-4. Give you a direct answer in plain prose — what actually held up, what fell apart, and the verdict with a calibrated confidence stated in a sentence. No rubric, no labeled roles, no transcript dump.
+2. Ask about hard constraints and any reference material (Context intake)
+3. Define the aspects worth debating for this specific idea (Scoper)
+4. Run up to 2 rounds of real debate between isolated Prosecutor/Defender subagents — dispatched in parallel, on a faster model, stopping early once nothing new is being said (ask for "modo profundo" for a slower, deeper 3-round pass)
+5. Give you a direct answer in plain prose — what actually held up, what fell apart, and the verdict with a calibrated confidence stated in a sentence. No rubric, no labeled roles, no transcript dump.
 
 ## How it works
 
@@ -44,12 +45,13 @@ flowchart LR
     C --> A([Answer])
 ```
 
-CourtEval is a real pipeline. Only Prosecutor and Defender run as isolated subagents — Gatekeeper, Scoper, and Judge reason in the same ongoing context:
+CourtEval is a real pipeline. Only Prosecutor and Defender run as isolated subagents — Gatekeeper, Context intake, Scoper, and Judge reason in the same ongoing context:
 
 ```mermaid
 flowchart LR
     Q([Question]) --> GK[Gatekeeper]
-    GK --> SC[Scoper — defines the aspects]
+    GK --> CI[Context intake — constraints + sources]
+    CI --> SC[Scoper — defines the aspects]
     SC --> RD{{Round}}
     RD --> PR[Prosecutor]
     RD --> DF[Defender]
