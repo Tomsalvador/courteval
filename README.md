@@ -13,10 +13,17 @@ No fixed checklist — a **Scoper** step defines 4-5 aspects specific to *this* 
 ## Install
 
 ```bash
-git clone https://github.com/Tomsalvador/courteval.git
+claude plugin marketplace add Tomsalvador/courteval
+claude plugin install courteval@courteval-marketplace
 ```
 
-Then add it as a Claude Code plugin (via `.claude-plugin/marketplace.json` in this repo, or by pointing Claude Code at the cloned path per its plugin-loading docs).
+That's it — no clone needed. To install from a local checkout instead, clone the repo and point the marketplace at the directory:
+
+```bash
+git clone https://github.com/Tomsalvador/courteval.git
+claude plugin marketplace add ./courteval
+claude plugin install courteval@courteval-marketplace
+```
 
 ## Use
 
